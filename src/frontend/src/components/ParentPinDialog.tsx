@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
 import { Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -24,20 +23,17 @@ export default function ParentPinDialog({ open, onClose, onSuccess }: Props) {
   const setParentPin = useSetParentPin();
   const verifyParentPin = useVerifyParentPin();
 
-  // Check if PIN is already set by trying an empty verify
-  const { data: hasPinSet, isLoading: checkingPin } = useQuery({
-    queryKey: ["pinExists"],
-    queryFn: async () => {
-      if (!actor) return false;
-      // Try verifying with a dummy PIN — if it returns false, PIN is set
-      // If verifying a blank string returns false, that means PIN is set (won't match)
-      // We rely on the fact that verifyParentPin with empty string returns false only if there's no pin or pin doesn't match
-      // The backend sets pin to empty string by default meaning no pin set
-      const result = await actor.verifyParentPin("");
-      return result; // true = no PIN set (empty string matches), false = PIN is set
-    },
-    enabled: !!actor && !isFetching && open,
-  });
+  // Determine if a PIN has been set using localStorage as a reliable indicator.
+  // The backend cannot distinguish "no PIN set" from "wrong PIN" via verifyParentPin,
+  // so we track PIN creation state in localStorage.
+  const [pinExistsLocal, setPinExistsLocal] = useState<boolean>(
+    () => localStorage.getItem("choreTrackerPinSet") === "true",
+  );
+  // Show loading while actor is not ready OR while fetching
+  const checkingPin = isFetching || !actor;
+
+  // hasPinSet: true = PIN exists (need to verify), false = no PIN (need to create)
+  const hasPinSet = pinExistsLocal;
 
   useEffect(() => {
     if (open) {
@@ -49,8 +45,8 @@ export default function ParentPinDialog({ open, onClose, onSuccess }: Props) {
     }
   }, [open]);
 
-  const _isPinMode = hasPinSet === false; // PIN is set, need to enter it
-  const isCreateMode = hasPinSet === true; // No PIN, need to create one
+  const _isPinMode = hasPinSet === true; // PIN is set, need to enter it
+  const isCreateMode = !hasPinSet; // No PIN, need to create one
 
   const handleSubmit = async () => {
     setError("");
@@ -67,6 +63,8 @@ export default function ParentPinDialog({ open, onClose, onSuccess }: Props) {
       }
       try {
         await setParentPin.mutateAsync(pin);
+        localStorage.setItem("choreTrackerPinSet", "true");
+        setPinExistsLocal(true);
         onSuccess();
       } catch {
         setError("Failed to set PIN");
@@ -110,7 +108,7 @@ export default function ParentPinDialog({ open, onClose, onSuccess }: Props) {
       : "Enter your 4-digit PIN to continue";
 
   const isLoading =
-    setParentPin.isPending || verifyParentPin.isPending || checkingPin;
+    setParentPin.isPending || verifyParentPin.isPending || isFetching || !actor;
 
   return (
     <AnimatePresence>
