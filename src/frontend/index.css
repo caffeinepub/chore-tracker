@@ -1,0 +1,180 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Fonts ─── */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Figtree";
+  src: url("/assets/fonts/Figtree-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 1rem;
+
+    /* ─── Warm Sunshine palette ─── */
+    --background: 0.98 0.012 85;
+    --foreground: 0.22 0.04 50;
+
+    --card: 1 0 0;
+    --card-foreground: 0.22 0.04 50;
+
+    --popover: 1 0 0;
+    --popover-foreground: 0.22 0.04 50;
+
+    /* Golden primary */
+    --primary: 0.76 0.16 75;
+    --primary-foreground: 0.12 0.04 50;
+
+    /* Soft lavender secondary */
+    --secondary: 0.92 0.04 280;
+    --secondary-foreground: 0.25 0.08 280;
+
+    --muted: 0.94 0.02 80;
+    --muted-foreground: 0.52 0.04 60;
+
+    /* Coral accent */
+    --accent: 0.70 0.20 35;
+    --accent-foreground: 1 0 0;
+
+    --destructive: 0.60 0.22 25;
+    --destructive-foreground: 0.985 0 0;
+
+    --border: 0.88 0.03 80;
+    --input: 0.88 0.03 80;
+    --ring: 0.76 0.16 75;
+
+    /* Charts: kid rainbow */
+    --chart-1: 0.76 0.16 75;
+    --chart-2: 0.70 0.20 35;
+    --chart-3: 0.72 0.18 150;
+    --chart-4: 0.68 0.18 240;
+    --chart-5: 0.70 0.18 300;
+
+    --sidebar: 0.96 0.02 80;
+    --sidebar-foreground: 0.22 0.04 50;
+    --sidebar-primary: 0.76 0.16 75;
+    --sidebar-primary-foreground: 0.12 0.04 50;
+    --sidebar-accent: 0.92 0.04 280;
+    --sidebar-accent-foreground: 0.25 0.08 280;
+    --sidebar-border: 0.88 0.03 80;
+    --sidebar-ring: 0.76 0.16 75;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Figtree", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700;
+  }
+}
+
+/* ─── Kid-friendly child color swatches ─── */
+:root {
+  --kid-coral: oklch(0.72 0.18 20);
+  --kid-sky: oklch(0.68 0.16 240);
+  --kid-mint: oklch(0.68 0.16 155);
+  --kid-grape: oklch(0.64 0.18 300);
+  --kid-sun: oklch(0.82 0.18 90);
+  --kid-rose: oklch(0.70 0.20 355);
+  --kid-teal: oklch(0.64 0.16 195);
+  --kid-peach: oklch(0.76 0.16 50);
+}
+
+/* ─── Kid mode bounce animation ─── */
+@keyframes kid-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes star-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.15) rotate(8deg); }
+}
+
+@keyframes confetti-pop {
+  0% { transform: scale(0) rotate(0deg); opacity: 0; }
+  60% { transform: scale(1.25) rotate(180deg); opacity: 1; }
+  100% { transform: scale(1) rotate(360deg); opacity: 1; }
+}
+
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.kid-bounce {
+  transition: transform 0.15s ease;
+}
+.kid-bounce:hover {
+  animation: kid-bounce 0.35s ease-in-out;
+}
+.kid-bounce:active {
+  transform: scale(0.95);
+}
+
+.star-pulse {
+  animation: star-pulse 1.8s ease-in-out infinite;
+}
+
+.confetti-pop {
+  animation: confetti-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.float-up {
+  animation: float-up 0.4s ease-out both;
+}
+
+/* ─── Gold shimmer for balance display ─── */
+.gold-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.76 0.16 75) 0%,
+    oklch(0.88 0.20 90) 40%,
+    oklch(0.76 0.16 75) 60%,
+    oklch(0.82 0.18 80) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.76 0.16 75 / 0.4);
+  border-radius: 99px;
+}
