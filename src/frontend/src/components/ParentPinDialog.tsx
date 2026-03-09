@@ -2,8 +2,16 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { useActor } from "../hooks/useActor";
-import { useSetParentPin, useVerifyParentPin } from "../hooks/useQueries";
+
+const PIN_STORAGE_KEY = "choreTrackerPin";
+
+function getStoredPin(): string | null {
+  return localStorage.getItem(PIN_STORAGE_KEY);
+}
+
+function savePin(pin: string) {
+  localStorage.setItem(PIN_STORAGE_KEY, pin);
+}
 
 interface Props {
   open: boolean;
@@ -19,21 +27,8 @@ export default function ParentPinDialog({ open, onClose, onSuccess }: Props) {
   const [isSettingPin, setIsSettingPin] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { actor, isFetching } = useActor();
-  const setParentPin = useSetParentPin();
-  const verifyParentPin = useVerifyParentPin();
-
-  // Determine if a PIN has been set using localStorage as a reliable indicator.
-  // The backend cannot distinguish "no PIN set" from "wrong PIN" via verifyParentPin,
-  // so we track PIN creation state in localStorage.
-  const [pinExistsLocal, setPinExistsLocal] = useState<boolean>(
-    () => localStorage.getItem("choreTrackerPinSet") === "true",
-  );
-  // Show loading while actor is not ready OR while fetching
-  const checkingPin = isFetching || !actor;
-
   // hasPinSet: true = PIN exists (need to verify), false = no PIN (need to create)
-  const hasPinSet = pinExistsLocal;
+  const [hasPinSet, setHasPinSet] = useState<boolean>(() => !!getStoredPin());
 
   useEffect(() => {
     if (open) {
@@ -41,14 +36,15 @@ export default function ParentPinDialog({ open, onClose, onSuccess }: Props) {
       setConfirmPin("");
       setError("");
       setIsSettingPin(false);
+      // Re-read pin state each time dialog opens
+      setHasPinSet(!!getStoredPin());
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [open]);
 
-  const _isPinMode = hasPinSet === true; // PIN is set, need to enter it
   const isCreateMode = !hasPinSet; // No PIN, need to create one
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     setError("");
 
     if (pin.length !== 4) {
@@ -61,28 +57,19 @@ export default function ParentPinDialog({ open, onClose, onSuccess }: Props) {
         setError("PINs don't match");
         return;
       }
-      try {
-        await setParentPin.mutateAsync(pin);
-        localStorage.setItem("choreTrackerPinSet", "true");
-        setPinExistsLocal(true);
-        onSuccess();
-      } catch {
-        setError("Failed to set PIN");
-      }
+      savePin(pin);
+      setHasPinSet(true);
+      onSuccess();
       return;
     }
 
     // Verify existing PIN
-    try {
-      const valid = await verifyParentPin.mutateAsync(pin);
-      if (valid) {
-        onSuccess();
-      } else {
-        setError("Wrong PIN, try again!");
-        setPin("");
-      }
-    } catch {
-      setError("Something went wrong");
+    const stored = getStoredPin();
+    if (stored === pin) {
+      onSuccess();
+    } else {
+      setError("Wrong PIN, try again!");
+      setPin("");
     }
   };
 
@@ -107,8 +94,7 @@ export default function ParentPinDialog({ open, onClose, onSuccess }: Props) {
       ? "Set a 4-digit PIN to protect Parent Mode"
       : "Enter your 4-digit PIN to continue";
 
-  const isLoading =
-    setParentPin.isPending || verifyParentPin.isPending || isFetching || !actor;
+  const isLoading = false;
 
   return (
     <AnimatePresence>
@@ -156,110 +142,99 @@ export default function ParentPinDialog({ open, onClose, onSuccess }: Props) {
                 <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
               </div>
 
-              {checkingPin ? (
-                <div className="flex gap-2">
+              <div className="flex flex-col gap-4 w-full">
+                {/* PIN dots display */}
+                <div className="flex justify-center gap-3">
                   {[0, 1, 2, 3].map((i) => (
-                    <div
+                    <motion.div
                       key={i}
-                      className="w-12 h-12 rounded-xl bg-muted animate-pulse"
-                    />
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold border-2 transition-all"
+                      style={{
+                        background:
+                          pin.length > i
+                            ? "oklch(0.76 0.16 75)"
+                            : "oklch(0.94 0.02 80)",
+                        borderColor:
+                          pin.length > i
+                            ? "oklch(0.66 0.16 75)"
+                            : "oklch(0.88 0.03 80)",
+                        color:
+                          pin.length > i
+                            ? "oklch(0.12 0.04 50)"
+                            : "transparent",
+                      }}
+                      animate={{
+                        scale: pin.length === i + 1 ? [1, 1.1, 1] : 1,
+                      }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      {showPin && pin[i] ? pin[i] : pin.length > i ? "●" : ""}
+                    </motion.div>
                   ))}
                 </div>
-              ) : (
-                <div className="flex flex-col gap-4 w-full">
-                  {/* PIN dots display */}
-                  <div className="flex justify-center gap-3">
-                    {[0, 1, 2, 3].map((i) => (
-                      <motion.div
-                        key={i}
-                        className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold border-2 transition-all"
-                        style={{
-                          background:
-                            pin.length > i
-                              ? "oklch(0.76 0.16 75)"
-                              : "oklch(0.94 0.02 80)",
-                          borderColor:
-                            pin.length > i
-                              ? "oklch(0.66 0.16 75)"
-                              : "oklch(0.88 0.03 80)",
-                          color:
-                            pin.length > i
-                              ? "oklch(0.12 0.04 50)"
-                              : "transparent",
-                        }}
-                        animate={{
-                          scale: pin.length === i + 1 ? [1, 1.1, 1] : 1,
-                        }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        {showPin && pin[i] ? pin[i] : pin.length > i ? "●" : ""}
-                      </motion.div>
-                    ))}
-                  </div>
 
-                  {/* Hidden input for PIN */}
+                {/* Hidden input for PIN */}
+                <div className="relative">
+                  <input
+                    ref={inputRef}
+                    data-ocid="pin.input"
+                    type={showPin ? "text" : "password"}
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={pin}
+                    onChange={(e) => handlePinInput(e.target.value)}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && pin.length === 4 && handleSubmit()
+                    }
+                    placeholder="Enter 4-digit PIN"
+                    className="w-full h-12 px-4 rounded-xl border-2 border-border bg-muted text-center text-lg font-mono tracking-widest focus:outline-none focus:border-ring transition-colors"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPin((s) => !s)}
+                  >
+                    {showPin ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Confirm PIN for create mode */}
+                {(isCreateMode || isSettingPin) && (
                   <div className="relative">
                     <input
-                      ref={inputRef}
-                      data-ocid="pin.input"
                       type={showPin ? "text" : "password"}
                       inputMode="numeric"
                       maxLength={4}
-                      value={pin}
-                      onChange={(e) => handlePinInput(e.target.value)}
+                      value={confirmPin}
+                      onChange={(e) => handleConfirmInput(e.target.value)}
                       onKeyDown={(e) =>
-                        e.key === "Enter" && pin.length === 4 && handleSubmit()
+                        e.key === "Enter" &&
+                        pin.length === 4 &&
+                        confirmPin.length === 4 &&
+                        handleSubmit()
                       }
-                      placeholder="Enter 4-digit PIN"
+                      placeholder="Confirm PIN"
                       className="w-full h-12 px-4 rounded-xl border-2 border-border bg-muted text-center text-lg font-mono tracking-widest focus:outline-none focus:border-ring transition-colors"
                     />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setShowPin((s) => !s)}
-                    >
-                      {showPin ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
                   </div>
+                )}
 
-                  {/* Confirm PIN for create mode */}
-                  {(isCreateMode || isSettingPin) && (
-                    <div className="relative">
-                      <input
-                        type={showPin ? "text" : "password"}
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={confirmPin}
-                        onChange={(e) => handleConfirmInput(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" &&
-                          pin.length === 4 &&
-                          confirmPin.length === 4 &&
-                          handleSubmit()
-                        }
-                        placeholder="Confirm PIN"
-                        className="w-full h-12 px-4 rounded-xl border-2 border-border bg-muted text-center text-lg font-mono tracking-widest focus:outline-none focus:border-ring transition-colors"
-                      />
-                    </div>
-                  )}
-
-                  {/* Error */}
-                  {error && (
-                    <motion.p
-                      data-ocid="pin.error_state"
-                      className="text-center text-sm font-semibold text-destructive"
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      {error}
-                    </motion.p>
-                  )}
-                </div>
-              )}
+                {/* Error */}
+                {error && (
+                  <motion.p
+                    data-ocid="pin.error_state"
+                    className="text-center text-sm font-semibold text-destructive"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    {error}
+                  </motion.p>
+                )}
+              </div>
 
               <div className="flex gap-3 w-full">
                 <Button
